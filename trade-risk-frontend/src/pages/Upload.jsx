@@ -33,7 +33,7 @@ export default function Upload() {
     <div className="space-y-10">
 
       {/* ================= HERO ================= */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl">
+      <div className="bg-linear-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl">
         <h1 className="text-3xl font-bold">
           Data Ingestion & Risk Analysis
         </h1>

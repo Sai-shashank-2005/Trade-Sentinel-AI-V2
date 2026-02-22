@@ -47,7 +47,7 @@ export default function Transactions() {
     <div className="space-y-10">
 
       {/* ================= EXECUTIVE HEADER ================= */}
-       <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl">
+       <div className="bg-linear-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl">
         <h1 className="text-4xl font-bold tracking-wide">
         Transaction Intelligence Console
         </h1>
