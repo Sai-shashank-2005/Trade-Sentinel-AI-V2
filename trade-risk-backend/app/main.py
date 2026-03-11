@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
 from app.routes import analyze, dashboard, transactions
-
+from app.routes import live_trade
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
@@ -26,7 +26,7 @@ app.add_middleware(
 app.include_router(analyze.router)
 app.include_router(dashboard.router)
 app.include_router(transactions.router)
-
+app.include_router(live_trade.router)
 
 @app.get("/")
 def root():

@@ -163,8 +163,7 @@ export default function Dashboard() {
               <tr
                 key={txn.transaction_id}
                 onClick={() =>
-                  navigate(`/transactions/${txn.transaction_id}`)
-                }
+                  navigate(`/transactions/${txn.id}`)                 }
                 className="border-t border-gray-800 hover:bg-gray-800 cursor-pointer transition"
               >
                 <td className="p-3">{txn.transaction_id}</td>

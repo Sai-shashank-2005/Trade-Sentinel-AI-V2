@@ -3,7 +3,8 @@ import logo from "../assets/logo.png";
 import {
   LayoutDashboard,
   UploadCloud,
-  ListOrdered
+  ListOrdered,
+  Activity
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -51,18 +52,27 @@ export default function Sidebar() {
             icon={<ListOrdered size={18} />}
           />
 
+          <SidebarLink
+            to="/live-trade"
+            label="Live Monitor"
+            icon={<Activity size={18} />}
+          />
+
         </nav>
       </div>
 
       {/* ================= FOOTER ================= */}
       <div className="px-6 py-5 border-t border-gray-800">
+
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-          System Operational
+          Real-Time Monitoring Active
         </div>
+
         <p className="text-xs text-gray-600 mt-2">
-          v2.0 Intelligence Engine
+          Trade Sentinel AI v2.5
         </p>
+
       </div>
 
     </div>
@@ -84,13 +94,10 @@ function SidebarLink({ to, label, icon }) {
         }`
       }
     >
-      {/* Active left bar */}
       <span
-        className={({ isActive }) =>
-          `absolute left-0 top-2 bottom-2 w-1 rounded-r ${
-            isActive ? "bg-blue-500" : ""
-          }`
-        }
+        className={`absolute left-0 top-2 bottom-2 w-1 rounded-r ${
+          window.location.pathname === to ? "bg-blue-500" : ""
+        }`}
       ></span>
 
       <span className="opacity-80 group-hover:opacity-100">
