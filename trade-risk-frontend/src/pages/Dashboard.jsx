@@ -2,27 +2,29 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip,
 } from "recharts";
 
 const API = import.meta.env.VITE_API_URL;
 
 export default function Dashboard() {
+  const navigate = useNavigate();
 
   const [summary, setSummary] = useState(null);
   const [topRisk, setTopRisk] = useState([]);
-  const [recentAlerts, setRecentAlerts] = useState([]);
-
-  const navigate = useNavigate();
+  const [routeRisk, setRouteRisk] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [riskIndex, setRiskIndex] = useState(0);
 
   useEffect(() => {
     fetchSummary();
-    fetchTopRisk();
-    fetchRecentAlerts();
+    fetchTransactions();
   }, []);
 
   async function fetchSummary() {
@@ -30,61 +32,105 @@ export default function Dashboard() {
     setSummary(res.data);
   }
 
-  async function fetchTopRisk() {
+  async function fetchTransactions() {
+    const res = await axios.get(`${API}/transactions?limit=500`);
+    const txns = res.data;
 
-    const res = await axios.get(
-      `${API}/transactions?limit=10&risk_level=High`
-    );
+    /* GLOBAL RISK INDEX */
+    const avg =
+      txns.reduce((sum, t) => sum + t.final_risk, 0) / txns.length;
 
-    const sorted = res.data.sort(
-      (a, b) => b.final_risk - a.final_risk
-    );
+    setRiskIndex(avg.toFixed(1));
 
-    setTopRisk(sorted);
-  }
+    /* ROUTE RISK INTELLIGENCE */
 
-  async function fetchRecentAlerts() {
+    const routeMap = {};
 
-    const res = await axios.get(
-      `${API}/transactions?limit=5`
-    );
+    txns.forEach((t) => {
+      const r = t.route;
 
-    const alerts = res.data
-      .filter(t => t.final_risk > 60)
-      .sort((a, b) => b.final_risk - a.final_risk);
+      if (!routeMap[r]) {
+        routeMap[r] = { route: r, total: 0, count: 0 };
+      }
 
-    setRecentAlerts(alerts);
+      routeMap[r].total += t.final_risk;
+      routeMap[r].count++;
+    });
+
+    const routeData = Object.values(routeMap)
+      .map((r) => ({
+        route: r.route,
+        risk: r.total / r.count,
+      }))
+      .sort((a, b) => b.risk - a.risk)
+      .slice(0, 8);
+
+    setRouteRisk(routeData);
+
+    /* ALERT FEED */
+
+    const highAlerts = txns
+      .filter((t) => t.risk_level === "High")
+      .slice(0, 5);
+
+    setAlerts(highAlerts);
+
+    /* TOP RISK */
+
+    const top = txns
+      .sort((a, b) => b.final_risk - a.final_risk)
+      .slice(0, 10);
+
+    setTopRisk(top);
   }
 
   if (!summary)
-    return <div className="text-gray-400 text-sm">Loading dashboard...</div>;
+    return <div className="text-gray-400">Loading dashboard...</div>;
 
-  const data = [
-    { name: "High", value: summary.high },
-    { name: "Medium", value: summary.medium },
-    { name: "Low", value: summary.low },
-  ];
-
-  const COLORS = ["#ef4444", "#facc15", "#22c55e"];
-
-  const highPercent = summary.total
-    ? ((summary.high / summary.total) * 100).toFixed(2)
-    : 0;
+  const highPercent = ((summary.high / summary.total) * 100).toFixed(2);
 
   return (
     <div className="space-y-10">
 
-      {/* HERO */}
+      {/* HEADER */}
+
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl">
-        <h1 className="text-4xl font-bold tracking-wide">
-          Trade Sentinel AI
+        <h1 className="text-4xl font-bold">
+          Global Trade Risk Intelligence
         </h1>
-        <p className="text-gray-400 mt-2 text-sm">
-          Context-Aware Hybrid Risk Intelligence Engine
+
+        <p className="text-gray-400 text-sm mt-2">
+          AI-driven anomaly detection monitoring international trade flows
         </p>
       </div>
 
+
+      {/* GLOBAL RISK INDEX */}
+
+      <div className="bg-gray-900 p-6 rounded-2xl shadow-lg flex justify-between">
+
+        <div>
+          <p className="text-xs text-gray-400 uppercase">
+            Global Risk Index
+          </p>
+
+          <p className="text-4xl font-bold text-blue-400 mt-2">
+            {riskIndex}
+          </p>
+
+          <p className="text-gray-400 text-sm">
+            Aggregated intelligence from recent trade flows
+          </p>
+        </div>
+
+        <div className="text-right text-sm text-gray-500">
+          Hybrid AI + Rule + Context scoring
+        </div>
+      </div>
+
+
       {/* KPI GRID */}
+
       <div className="grid grid-cols-4 gap-6">
 
         <KPI label="Total Transactions" value={summary.total} />
@@ -92,94 +138,89 @@ export default function Dashboard() {
         <KPI
           label="High Risk"
           value={summary.high}
-          highlight="red"
-          sub={`${highPercent}% of total`}
+          sub={`${highPercent}% flagged`}
+          color="text-red-400"
         />
 
         <KPI
           label="Medium Risk"
           value={summary.medium}
-          highlight="yellow"
+          color="text-yellow-400"
         />
 
         <KPI
           label="Low Risk"
           value={summary.low}
-          highlight="green"
+          color="text-green-400"
         />
 
       </div>
 
 
-      {/* DONUT + STATUS */}
-      <div className="grid grid-cols-2 gap-6 items-start">
+      {/* RISK EXPOSURE + ROUTE RISK */}
 
-        {/* DONUT */}
+      <div className="grid grid-cols-2 gap-6">
+
+        {/* RISK EXPOSURE */}
+
         <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
           <h2 className="text-lg font-semibold mb-4">
-            Risk Distribution Overview
+            Risk Exposure
           </h2>
 
-          <div className="h-80 relative">
+          <div className="space-y-4">
+
+            <Exposure
+              label="High Risk Investigations"
+              value={summary.high}
+              color="text-red-400"
+            />
+
+            <Exposure
+              label="Medium Risk Monitoring"
+              value={summary.medium}
+              color="text-yellow-400"
+            />
+
+            <Exposure
+              label="Safe Trade Volume"
+              value={summary.low}
+              color="text-green-400"
+            />
+
+          </div>
+        </div>
+
+
+        {/* ROUTE HEATMAP */}
+
+        <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
+
+          <h2 className="text-lg font-semibold mb-4">
+            Risk Concentration by Trade Route
+          </h2>
+
+          <div className="h-80">
 
             <ResponsiveContainer>
 
-              <PieChart>
+              <BarChart data={routeRisk}>
 
-                <Pie
-                  data={data}
-                  innerRadius={85}
-                  outerRadius={120}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
 
-                  {data.map((entry, index) => (
-                    <Cell key={index} fill={COLORS[index]} />
-                  ))}
+                <XAxis dataKey="route" stroke="#aaa" />
 
-                </Pie>
+                <YAxis stroke="#aaa" />
 
-                <Tooltip content={<CustomTooltip total={summary.total} />} />
+                <Tooltip />
 
-              </PieChart>
+                <Bar dataKey="risk" fill="#3b82f6" />
+
+              </BarChart>
 
             </ResponsiveContainer>
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-xs text-gray-400 uppercase">
-                Total
-              </p>
-              <p className="text-2xl font-bold">
-                {summary.total}
-              </p>
-            </div>
-
-          </div>
-
-        </div>
-
-
-        {/* SYSTEM STATUS */}
-        <div className="bg-gray-900 p-6 rounded-2xl shadow-lg space-y-5">
-
-          <h2 className="text-lg font-semibold">
-            Intelligence System Status
-          </h2>
-
-          <p className="text-gray-400 text-sm">
-            Hybrid anomaly detection pipeline monitoring international
-            trade behavior in real time.
-          </p>
-
-          <div className="space-y-3 text-sm text-gray-300">
-
-            <Insight text="Isolation Forest anomaly model active" />
-            <Insight text="Rule engine monitoring trade patterns" />
-            <Insight text="Context layer reducing false positives" />
-            <Insight text="Explainable AI reasoning enabled" />
-
           </div>
 
         </div>
@@ -187,59 +228,47 @@ export default function Dashboard() {
       </div>
 
 
-      {/* LIVE THREAT FEED */}
+      {/* ALERT FEED */}
+
       <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
         <h2 className="text-lg font-semibold mb-4">
-          🚨 Live Threat Feed
+          🚨 Active Risk Alerts
         </h2>
 
-        <div className="space-y-3">
+        {alerts.length === 0 && (
+          <p className="text-gray-400 text-sm">
+            No high-risk anomalies detected recently
+          </p>
+        )}
 
-          {recentAlerts.length === 0 && (
-            <p className="text-gray-400 text-sm">
-              No high-risk anomalies detected recently
-            </p>
-          )}
+        {alerts.map((a) => (
 
-          {recentAlerts.map(alert => (
+          <div
+            key={a.id}
+            onClick={() => navigate(`/transactions/${a.id}`)}
+            className="flex justify-between border-b border-gray-800 py-2 cursor-pointer hover:text-white"
+          >
 
-            <div
-              key={alert.transaction_id}
-              onClick={() =>
-                navigate(`/transactions/${alert.transaction_id}`)
-              }
-              className="flex justify-between items-center bg-gray-800 px-4 py-3 rounded-lg hover:bg-gray-700 cursor-pointer transition"
-            >
+            <span>Txn {a.transaction_id}</span>
 
-              <div>
-                <p className="font-semibold">
-                  Transaction {alert.transaction_id}
-                </p>
+            <span className="text-red-400">
+              {a.final_risk.toFixed(2)}
+            </span>
 
-                <p className="text-xs text-gray-400">
-                  AI Score {alert.ai_score.toFixed(2)}
-                </p>
-              </div>
+          </div>
 
-              <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs font-semibold">
-                Risk {alert.final_risk.toFixed(2)}
-              </span>
-
-            </div>
-
-          ))}
-
-        </div>
+        ))}
 
       </div>
 
 
-      {/* TOP HIGH RISK TABLE */}
+      {/* TOP HIGH RISK */}
+
       <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
         <h2 className="text-lg font-semibold mb-4">
-          🔥 Top 10 High Risk Transactions
+          🔥 Top High Risk Transactions
         </h2>
 
         <table className="w-full text-left">
@@ -260,30 +289,20 @@ export default function Dashboard() {
             {topRisk.map((txn) => (
 
               <tr
-                key={txn.transaction_id}
-                onClick={() =>
-                  navigate(`/transactions/${txn.transaction_id}`)
-                }
-                className="border-t border-gray-800 hover:bg-gray-800 cursor-pointer transition"
+                key={txn.id}
+                onClick={() => navigate(`/transactions/${txn.id}`)}
+                className="border-t border-gray-800 hover:bg-gray-800 cursor-pointer"
               >
 
-                <td className="p-3">
-                  {txn.transaction_id}
+                <td className="p-3">{txn.transaction_id}</td>
+
+                <td className="text-red-400 font-semibold">
+                  {txn.final_risk.toFixed(2)}
                 </td>
 
-                <td>
-                  <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs font-semibold">
-                    {txn.final_risk.toFixed(2)}
-                  </span>
-                </td>
+                <td>{txn.ai_score.toFixed(2)}</td>
 
-                <td>
-                  {txn.ai_score.toFixed(2)}
-                </td>
-
-                <td>
-                  {txn.context_adjustment.toFixed(2)}
-                </td>
+                <td>{txn.context_adjustment.toFixed(2)}</td>
 
               </tr>
 
@@ -300,81 +319,23 @@ export default function Dashboard() {
 }
 
 
-/* KPI CARD */
-
-function KPI({ label, value, highlight, sub }) {
-
-  const color =
-    highlight === "red"
-      ? "text-red-400"
-      : highlight === "yellow"
-      ? "text-yellow-400"
-      : highlight === "green"
-      ? "text-green-400"
-      : "text-white";
-
+function KPI({ label, value, color, sub }) {
   return (
-    <div className="bg-gray-900 p-6 rounded-2xl shadow-lg hover:scale-[1.02] transition-transform">
-
-      <p className="text-gray-400 text-xs uppercase tracking-wider">
-        {label}
-      </p>
-
-      <p className={`text-2xl font-bold mt-2 ${color}`}>
+    <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
+      <p className="text-xs text-gray-400 uppercase">{label}</p>
+      <p className={`text-2xl font-bold mt-2 ${color || ""}`}>
         {value}
       </p>
-
-      {sub && (
-        <p className="text-xs text-gray-500 mt-1">
-          {sub}
-        </p>
-      )}
-
+      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
     </div>
   );
 }
 
-
-/* INSIGHT */
-
-function Insight({ text }) {
-
+function Exposure({ label, value, color }) {
   return (
-    <div className="flex items-start gap-2">
-      <span className="text-green-400">✔</span>
-      <span>{text}</span>
+    <div className="flex justify-between border-b border-gray-800 pb-2">
+      <span>{label}</span>
+      <span className={`font-semibold ${color}`}>{value}</span>
     </div>
   );
-}
-
-
-/* TOOLTIP */
-
-function CustomTooltip({ active, payload, total }) {
-
-  if (active && payload && payload.length) {
-
-    const value = payload[0].value;
-    const percent = ((value / total) * 100).toFixed(2);
-
-    return (
-      <div className="bg-gray-800 p-3 rounded-lg shadow-lg text-sm border border-gray-700">
-
-        <p className="font-semibold">
-          {payload[0].name}
-        </p>
-
-        <p>
-          {value} transactions
-        </p>
-
-        <p>
-          {percent}% of total
-        </p>
-
-      </div>
-    );
-  }
-
-  return null;
 }
