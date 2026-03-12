@@ -11,9 +11,7 @@ import {
   Tooltip,
   PieChart,
   Pie,
-  Cell,
-  Legend,
-  Sector
+  Cell
 } from "recharts";
 
 const API = import.meta.env.VITE_API_URL;
@@ -25,13 +23,20 @@ export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [topRisk, setTopRisk] = useState([]);
   const [routeRisk, setRouteRisk] = useState([]);
-  const [alerts, setAlerts] = useState([]);
+  const [recentTransactions, setRecentTransactions] = useState([]);
   const [riskIndex, setRiskIndex] = useState(0);
-  const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => {
+
     fetchSummary();
     fetchTransactions();
+
+    const interval = setInterval(() => {
+      fetchTransactions();
+    }, 5000);
+
+    return () => clearInterval(interval);
+
   }, []);
 
   async function fetchSummary() {
@@ -40,20 +45,26 @@ export default function Dashboard() {
   }
 
   async function fetchTransactions() {
+
     const res = await axios.get(`${API}/transactions?limit=500`);
     const txns = res.data || [];
 
     if (txns.length === 0) return;
+
+    /* GLOBAL RISK INDEX */
 
     const avg =
       txns.reduce((sum, t) => sum + (t.final_risk || 0), 0) / txns.length;
 
     setRiskIndex(avg.toFixed(1));
 
+    /* ROUTE RISK */
+
     const routeMap = {};
 
     txns.forEach((t) => {
-      const r = t.route || "UNKNOWN";
+
+      const r = t.route || "Unknown";
 
       if (!routeMap[r]) {
         routeMap[r] = { route: r, total: 0, count: 0 };
@@ -61,29 +72,42 @@ export default function Dashboard() {
 
       routeMap[r].total += t.final_risk || 0;
       routeMap[r].count++;
+
     });
 
     const routeData = Object.values(routeMap)
       .map((r) => ({
         route: r.route,
-        risk: r.total / r.count,
+        risk: r.total / r.count
       }))
       .sort((a, b) => b.risk - a.risk)
       .slice(0, 8);
 
     setRouteRisk(routeData);
 
-    const highAlerts = txns
-      .filter((t) => t.risk_level === "High")
-      .slice(0, 5);
+    /* LIVE FEED WITH FIXED TIME */
 
-    setAlerts(highAlerts);
+    const now = Date.now();
+
+    const recent = txns.slice(0, 6).map((t, i) => ({
+      ...t,
+      displayTime: new Date(now - i * 5000).toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      })
+    }));
+
+    setRecentTransactions(recent);
+
+    /* TOP HIGH RISK */
 
     const top = [...txns]
-      .sort((a, b) => b.final_risk - a.final_risk)
+      .sort((a, b) => (b.final_risk || 0) - (a.final_risk || 0))
       .slice(0, 10);
 
     setTopRisk(top);
+
   }
 
   if (!summary)
@@ -94,62 +118,22 @@ export default function Dashboard() {
   const riskDistribution = [
     { name: "High", value: summary.high },
     { name: "Medium", value: summary.medium },
-    { name: "Low", value: summary.low },
+    { name: "Low", value: summary.low }
   ];
 
   const COLORS = ["#ef4444", "#facc15", "#22c55e"];
 
-  const renderActiveShape = (props) => {
+  function riskColor(level) {
+    if (level === "High") return "text-red-400";
+    if (level === "Medium") return "text-yellow-400";
+    return "text-green-400";
+  }
 
-    const {
-      cx,
-      cy,
-      innerRadius,
-      outerRadius,
-      startAngle,
-      endAngle,
-      fill,
-      percent,
-      name
-    } = props;
-
-    return (
-      <g>
-
-        <Sector
-          cx={cx}
-          cy={cy}
-          innerRadius={innerRadius}
-          outerRadius={outerRadius + 10}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          fill={fill}
-        />
-
-        <text
-          x={cx}
-          y={cy - 6}
-          textAnchor="middle"
-          fill="#ffffff"
-          fontSize={18}
-          fontWeight="bold"
-        >
-          {name}
-        </text>
-
-        <text
-          x={cx}
-          y={cy + 16}
-          textAnchor="middle"
-          fill="#94a3b8"
-          fontSize={13}
-        >
-          {(percent * 100).toFixed(1)}%
-        </text>
-
-      </g>
-    );
-  };
+  function contextColor(v) {
+    if (v < 0) return "text-green-400";
+    if (v > 0) return "text-red-400";
+    return "text-gray-300";
+  }
 
   return (
 
@@ -160,7 +144,6 @@ export default function Dashboard() {
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl flex justify-between">
 
         <div>
-
           <h1 className="text-4xl font-bold">
             Global Trade Risk Intelligence
           </h1>
@@ -168,7 +151,6 @@ export default function Dashboard() {
           <p className="text-gray-400 text-sm mt-2">
             AI-driven anomaly detection across international trade flows
           </p>
-
         </div>
 
         <div className="text-right">
@@ -218,7 +200,7 @@ export default function Dashboard() {
 
       {/* CHARTS */}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-3 gap-6">
 
         {/* PIE */}
 
@@ -240,45 +222,15 @@ export default function Dashboard() {
                   innerRadius={85}
                   outerRadius={120}
                   paddingAngle={3}
-                  activeIndex={activeIndex}
-                  activeShape={renderActiveShape}
-                  onMouseEnter={(_, index) => setActiveIndex(index)}
-                  onMouseLeave={() => setActiveIndex(-1)}
-                  animationDuration={900}
                 >
 
                   {riskDistribution.map((entry, index) => (
-
-                    <Cell
-                      key={index}
-                      fill={COLORS[index]}
-                      style={{
-                        transition: "all 0.25s ease"
-                      }}
-                    />
-
+                    <Cell key={index} fill={COLORS[index]} />
                   ))}
 
                 </Pie>
 
-                <Tooltip
-                  cursor={false}
-                  contentStyle={{
-                    background: "#020617",
-                    border: "1px solid #1e293b",
-                    borderRadius: "8px",
-                    color: "#fff"
-                  }}
-                />
-
-                <Legend
-                  verticalAlign="bottom"
-                  iconType="circle"
-                  wrapperStyle={{
-                    color: "#cbd5f5",
-                    fontSize: "13px"
-                  }}
-                />
+                <Tooltip />
 
               </PieChart>
 
@@ -290,12 +242,8 @@ export default function Dashboard() {
                 Total Trades
               </p>
 
-              <p className="text-3xl font-bold text-white">
+              <p className="text-3xl font-bold">
                 {summary.total}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                monitored
               </p>
 
             </div>
@@ -304,48 +252,41 @@ export default function Dashboard() {
 
         </div>
 
-        {/* BAR CHART */}
+        {/* ROUTE RISK */}
 
-        <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
+        <div className="col-span-2 bg-gray-900 p-6 rounded-2xl shadow-lg">
 
           <h2 className="text-lg font-semibold mb-4">
             Risk Concentration by Trade Route
           </h2>
 
-          <div className="h-80">
+          <div className="h-96">
 
             <ResponsiveContainer>
 
-              <BarChart data={routeRisk}>
+              <BarChart data={routeRisk} margin={{ bottom: 40 }}>
 
-                <defs>
-                  <linearGradient id="routeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#60a5fa"/>
-                    <stop offset="100%" stopColor="#1d4ed8"/>
-                  </linearGradient>
-                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
 
-                <CartesianGrid strokeDasharray="4 4" stroke="#1f2937" />
+                <XAxis
+                  dataKey="route"
+                  stroke="#94a3b8"
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
 
-                <XAxis dataKey="route" stroke="#94a3b8"/>
-
-                <YAxis stroke="#94a3b8"/>
+                <YAxis stroke="#94a3b8" />
 
                 <Tooltip
-                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                  contentStyle={{
-                    background: "#020617",
-                    border: "1px solid #1e293b",
-                    borderRadius: "8px"
-                  }}
+                  formatter={(v) => v.toFixed(2)}
+                  labelFormatter={(l) => `Route: ${l}`}
                 />
 
                 <Bar
                   dataKey="risk"
-                  fill="url(#routeGradient)"
+                  fill="#3b82f6"
                   radius={[6,6,0,0]}
                   barSize={45}
-                  animationDuration={1200}
                 />
 
               </BarChart>
@@ -358,28 +299,36 @@ export default function Dashboard() {
 
       </div>
 
-      {/* ALERTS */}
+      {/* LIVE TRADE FEED */}
 
       <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
         <h2 className="text-lg font-semibold mb-4">
-          🚨 Active Risk Alerts
+          ⚡ Live Trade Feed
         </h2>
 
-        {alerts.map((a) => (
+        {recentTransactions.map((t) => (
 
           <div
-            key={a.id}
-            onClick={() => navigate(`/transactions/${a.transaction_id}`)}
-            className="flex justify-between border-b border-gray-800 py-2 cursor-pointer hover:text-white transition"
+            key={t.id}
+            onClick={() => navigate(`/transactions/${t.transaction_id}`)}
+            className="flex justify-between items-center border-b border-gray-800 py-2 hover:bg-gray-800/40 cursor-pointer"
           >
 
-            <span>
-              Txn {a.transaction_id} • {a.route}
-            </span>
+            <div className="flex gap-4">
 
-            <span className="text-red-400">
-              {a.final_risk.toFixed(2)}
+              <span className="text-gray-500 font-mono w-[90px]">
+                {t.displayTime}
+              </span>
+
+              <span>
+                Txn {t.transaction_id} • {t.route}
+              </span>
+
+            </div>
+
+            <span className={riskColor(t.risk_level)}>
+              {t.risk_level}
             </span>
 
           </div>
@@ -388,7 +337,7 @@ export default function Dashboard() {
 
       </div>
 
-      {/* TOP RISK */}
+      {/* TOP HIGH RISK TABLE */}
 
       <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
@@ -396,15 +345,15 @@ export default function Dashboard() {
           🔥 Top High Risk Transactions
         </h2>
 
-        <table className="w-full text-left">
+        <table className="w-full table-fixed">
 
-          <thead className="bg-gray-800 text-sm">
+          <thead className="bg-gray-800 text-gray-400 text-sm">
 
             <tr>
-              <th className="p-3">Txn ID</th>
-              <th>Final Risk</th>
-              <th>AI Score</th>
-              <th>Context Impact</th>
+              <th className="text-left px-6 py-3">Txn ID</th>
+              <th className="text-right px-6 py-3">Final Risk</th>
+              <th className="text-right px-6 py-3">AI Score</th>
+              <th className="text-right px-6 py-3">Context Impact</th>
             </tr>
 
           </thead>
@@ -419,15 +368,21 @@ export default function Dashboard() {
                 className="border-t border-gray-800 hover:bg-gray-800 cursor-pointer"
               >
 
-                <td className="p-3">{txn.transaction_id}</td>
-
-                <td className="text-red-400 font-semibold">
-                  {txn.final_risk.toFixed(2)}
+                <td className="px-6 py-3 text-blue-400">
+                  {txn.transaction_id}
                 </td>
 
-                <td>{txn.ai_score.toFixed(2)}</td>
+                <td className="px-6 py-3 text-right text-red-400 font-semibold">
+                  {(txn.final_risk || 0).toFixed(2)}
+                </td>
 
-                <td>{txn.context_adjustment.toFixed(2)}</td>
+                <td className="px-6 py-3 text-right">
+                  {(txn.ai_score || 0).toFixed(2)}
+                </td>
+
+                <td className={`px-6 py-3 text-right ${contextColor(txn.context_adjustment)}`}>
+                  {(txn.context_adjustment || 0).toFixed(2)}
+                </td>
 
               </tr>
 
@@ -440,7 +395,9 @@ export default function Dashboard() {
       </div>
 
     </div>
+
   );
+
 }
 
 function KPI({ label, value, color, sub }) {
@@ -466,4 +423,5 @@ function KPI({ label, value, color, sub }) {
     </div>
 
   );
+
 }

@@ -1,6 +1,9 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 
 import Sidebar from "./components/Sidebar";
+import PageWrapper from "./components/PageWrapper";
+
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import Transactions from "./pages/Transactions";
@@ -11,6 +14,7 @@ function Layout({ children }) {
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
       <Sidebar />
+
       <div className="flex-1 overflow-y-auto bg-gray-950 p-8">
         {children}
       </div>
@@ -18,29 +22,73 @@ function Layout({ children }) {
   );
 }
 
-export default function App() {
+function AppRoutes() {
+  const location = useLocation();
+
   return (
-    <BrowserRouter>
+    <Layout>
 
-      <Layout>
-        <Routes>
+      <AnimatePresence mode="wait">
 
-          <Route path="/" element={<Dashboard />} />
+        <Routes location={location} key={location.pathname}>
 
-          <Route path="/upload" element={<Upload />} />
+          <Route
+            path="/"
+            element={
+              <PageWrapper>
+                <Dashboard />
+              </PageWrapper>
+            }
+          />
 
-          <Route path="/transactions" element={<Transactions />} />
+          <Route
+            path="/upload"
+            element={
+              <PageWrapper>
+                <Upload />
+              </PageWrapper>
+            }
+          />
+
+          <Route
+            path="/transactions"
+            element={
+              <PageWrapper>
+                <Transactions />
+              </PageWrapper>
+            }
+          />
 
           <Route
             path="/transactions/:id"
-            element={<TransactionDetail />}
+            element={
+              <PageWrapper>
+                <TransactionDetail />
+              </PageWrapper>
+            }
           />
 
-          <Route path="/live-trade" element={<LiveTrade />} />
+          <Route
+            path="/live-trade"
+            element={
+              <PageWrapper>
+                <LiveTrade />
+              </PageWrapper>
+            }
+          />
 
         </Routes>
-      </Layout>
 
+      </AnimatePresence>
+
+    </Layout>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
     </BrowserRouter>
   );
 }

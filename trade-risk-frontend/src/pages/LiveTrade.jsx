@@ -130,7 +130,7 @@ export default function LiveTrade() {
 
       <button
         onClick={randomTrade}
-        className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm"
+        className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition"
       >
         Generate Random Trade
       </button>
@@ -151,7 +151,7 @@ export default function LiveTrade() {
             <input
               value={form[key]}
               onChange={e=>updateField(key,e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-800 border border-gray-700 px-4 py-2 rounded-lg focus:outline-none focus:border-blue-500 transition"
             />
 
           </div>
@@ -161,14 +161,20 @@ export default function LiveTrade() {
       </div>
 
 
-      {/* ANALYZE */}
+      {/* ANALYZE BUTTON */}
 
       <button
         onClick={submitTrade}
-        className="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-xl font-semibold"
+        disabled={loading}
+        className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300
+        ${
+          loading
+          ? "bg-blue-600 animate-pulse"
+          : "bg-blue-500 hover:bg-blue-600"
+        }`}
       >
 
-        {loading?"Analyzing...":"Analyze Trade"}
+        {loading?"Analyzing Trade...":"Analyze Trade"}
 
       </button>
 
@@ -177,7 +183,17 @@ export default function LiveTrade() {
 
       {result&&(
 
-        <div className="bg-gray-900 p-6 rounded-2xl space-y-4">
+        <div className="bg-gray-900 p-6 rounded-2xl space-y-4 border border-blue-500/20 animate-fadeIn">
+
+          <div className="flex items-center gap-2 text-blue-400">
+
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-ping"></div>
+
+            <span className="text-sm">
+              AI Analysis Engine
+            </span>
+
+          </div>
 
           <h2 className="text-xl font-semibold">
             Analysis Complete
@@ -197,7 +213,7 @@ export default function LiveTrade() {
 
           <button
             onClick={()=>navigate(`/transactions/${result.id}`)}
-            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg"
+            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition"
           >
             Open Investigation →
           </button>
@@ -217,17 +233,17 @@ export default function LiveTrade() {
             Recent Injected Trades
           </h2>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
 
             {recentTrades.map(t=>(
 
               <div
                 key={t.id}
                 onClick={()=>navigate(`/transactions/${t.id}`)}
-                className="flex justify-between bg-gray-800 px-4 py-3 rounded-lg cursor-pointer hover:bg-gray-700"
+                className="flex justify-between items-center px-4 py-3 rounded-lg border-b border-gray-800 cursor-pointer transition-all duration-150 hover:bg-blue-500/5"
               >
 
-                <span>
+                <span className="text-blue-400 font-medium">
                   Txn {t.id}
                 </span>
 
@@ -235,7 +251,7 @@ export default function LiveTrade() {
                   {t.route}
                 </span>
 
-                <span className="text-gray-500">
+                <span className="text-gray-500 text-sm">
                   {t.timestamp}
                 </span>
 
