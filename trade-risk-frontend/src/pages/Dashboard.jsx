@@ -12,11 +12,14 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
+  Sector
 } from "recharts";
 
 const API = import.meta.env.VITE_API_URL;
 
 export default function Dashboard() {
+
   const navigate = useNavigate();
 
   const [summary, setSummary] = useState(null);
@@ -24,6 +27,7 @@ export default function Dashboard() {
   const [routeRisk, setRouteRisk] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [riskIndex, setRiskIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => {
     fetchSummary();
@@ -41,14 +45,10 @@ export default function Dashboard() {
 
     if (txns.length === 0) return;
 
-    /* GLOBAL RISK INDEX */
-
     const avg =
       txns.reduce((sum, t) => sum + (t.final_risk || 0), 0) / txns.length;
 
     setRiskIndex(avg.toFixed(1));
-
-    /* ROUTE RISK */
 
     const routeMap = {};
 
@@ -73,15 +73,11 @@ export default function Dashboard() {
 
     setRouteRisk(routeData);
 
-    /* ALERT FEED */
-
     const highAlerts = txns
       .filter((t) => t.risk_level === "High")
       .slice(0, 5);
 
     setAlerts(highAlerts);
-
-    /* TOP RISK */
 
     const top = [...txns]
       .sort((a, b) => b.final_risk - a.final_risk)
@@ -103,14 +99,68 @@ export default function Dashboard() {
 
   const COLORS = ["#ef4444", "#facc15", "#22c55e"];
 
+  const renderActiveShape = (props) => {
+
+    const {
+      cx,
+      cy,
+      innerRadius,
+      outerRadius,
+      startAngle,
+      endAngle,
+      fill,
+      percent,
+      name
+    } = props;
+
+    return (
+      <g>
+
+        <Sector
+          cx={cx}
+          cy={cy}
+          innerRadius={innerRadius}
+          outerRadius={outerRadius + 10}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+        />
+
+        <text
+          x={cx}
+          y={cy - 6}
+          textAnchor="middle"
+          fill="#ffffff"
+          fontSize={18}
+          fontWeight="bold"
+        >
+          {name}
+        </text>
+
+        <text
+          x={cx}
+          y={cy + 16}
+          textAnchor="middle"
+          fill="#94a3b8"
+          fontSize={13}
+        >
+          {(percent * 100).toFixed(1)}%
+        </text>
+
+      </g>
+    );
+  };
+
   return (
+
     <div className="space-y-10">
 
-      {/* INTELLIGENCE HEADER */}
+      {/* HEADER */}
 
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl flex justify-between">
 
         <div>
+
           <h1 className="text-4xl font-bold">
             Global Trade Risk Intelligence
           </h1>
@@ -118,9 +168,11 @@ export default function Dashboard() {
           <p className="text-gray-400 text-sm mt-2">
             AI-driven anomaly detection across international trade flows
           </p>
+
         </div>
 
         <div className="text-right">
+
           <p className="text-xs text-gray-400 uppercase">
             Global Risk Index
           </p>
@@ -132,6 +184,7 @@ export default function Dashboard() {
           <p className="text-xs text-gray-500">
             Hybrid AI + Rule + Context scoring
           </p>
+
         </div>
 
       </div>
@@ -163,11 +216,11 @@ export default function Dashboard() {
 
       </div>
 
-      {/* RISK DISTRIBUTION + ROUTE RISK */}
+      {/* CHARTS */}
 
       <div className="grid grid-cols-2 gap-6">
 
-        {/* RISK DISTRIBUTION */}
+        {/* PIE */}
 
         <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
@@ -177,80 +230,81 @@ export default function Dashboard() {
 
           <div className="h-80 relative">
 
-  <ResponsiveContainer>
+            <ResponsiveContainer>
 
-    <PieChart>
+              <PieChart>
 
-      <defs>
-        <linearGradient id="highRisk" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ef4444"/>
-          <stop offset="100%" stopColor="#991b1b"/>
-        </linearGradient>
+                <Pie
+                  data={riskDistribution}
+                  dataKey="value"
+                  innerRadius={85}
+                  outerRadius={120}
+                  paddingAngle={3}
+                  activeIndex={activeIndex}
+                  activeShape={renderActiveShape}
+                  onMouseEnter={(_, index) => setActiveIndex(index)}
+                  onMouseLeave={() => setActiveIndex(-1)}
+                  animationDuration={900}
+                >
 
-        <linearGradient id="medRisk" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#facc15"/>
-          <stop offset="100%" stopColor="#ca8a04"/>
-        </linearGradient>
+                  {riskDistribution.map((entry, index) => (
 
-        <linearGradient id="lowRisk" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#22c55e"/>
-          <stop offset="100%" stopColor="#15803d"/>
-        </linearGradient>
-      </defs>
+                    <Cell
+                      key={index}
+                      fill={COLORS[index]}
+                      style={{
+                        transition: "all 0.25s ease"
+                      }}
+                    />
 
-      <Pie
-        data={riskDistribution}
-        dataKey="value"
-        innerRadius={85}
-        outerRadius={120}
-        paddingAngle={3}
-        stroke="#0f172a"
-        strokeWidth={2}
-      >
+                  ))}
 
-        <Cell fill="url(#highRisk)" />
-        <Cell fill="url(#medRisk)" />
-        <Cell fill="url(#lowRisk)" />
+                </Pie>
 
-      </Pie>
+                <Tooltip
+                  cursor={false}
+                  contentStyle={{
+                    background: "#020617",
+                    border: "1px solid #1e293b",
+                    borderRadius: "8px",
+                    color: "#fff"
+                  }}
+                />
 
-      <Tooltip
-        contentStyle={{
-          background: "#020617",
-          border: "1px solid #1e293b",
-          borderRadius: "8px",
-          color: "#fff"
-        }}
-      />
+                <Legend
+                  verticalAlign="bottom"
+                  iconType="circle"
+                  wrapperStyle={{
+                    color: "#cbd5f5",
+                    fontSize: "13px"
+                  }}
+                />
 
-    </PieChart>
+              </PieChart>
 
-  </ResponsiveContainer>
+            </ResponsiveContainer>
 
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
 
-  {/* CENTER METRIC */}
+              <p className="text-xs text-gray-400 uppercase">
+                Total Trades
+              </p>
 
-  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <p className="text-3xl font-bold text-white">
+                {summary.total}
+              </p>
 
-    <p className="text-xs text-gray-400 uppercase">
-      Total Trades
-    </p>
+              <p className="text-xs text-gray-500">
+                monitored
+              </p>
 
-    <p className="text-3xl font-bold text-white">
-      {summary.total}
-    </p>
+            </div>
 
-    <p className="text-xs text-gray-500">
-      monitored
-    </p>
+          </div>
 
-  </div>
-
-</div>
         </div>
 
-
-        {/* ROUTE RISK */}
+        {/* BAR CHART */}
 
         <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
@@ -260,57 +314,51 @@ export default function Dashboard() {
 
           <div className="h-80">
 
-  <ResponsiveContainer>
+            <ResponsiveContainer>
 
-    <BarChart data={routeRisk}>
+              <BarChart data={routeRisk}>
 
-      <defs>
-        <linearGradient id="routeGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#60a5fa"/>
-          <stop offset="100%" stopColor="#1d4ed8"/>
-        </linearGradient>
-      </defs>
+                <defs>
+                  <linearGradient id="routeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#60a5fa"/>
+                    <stop offset="100%" stopColor="#1d4ed8"/>
+                  </linearGradient>
+                </defs>
 
-      <CartesianGrid strokeDasharray="4 4" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="4 4" stroke="#1f2937" />
 
-      <XAxis
-        dataKey="route"
-        stroke="#94a3b8"
-        tick={{ fontSize: 12 }}
-      />
+                <XAxis dataKey="route" stroke="#94a3b8"/>
 
-      <YAxis
-        stroke="#94a3b8"
-        tick={{ fontSize: 12 }}
-      />
+                <YAxis stroke="#94a3b8"/>
 
-      <Tooltip
-        contentStyle={{
-          background: "#0f172a",
-          border: "1px solid #1f2937",
-          borderRadius: "8px",
-          color: "#fff"
-        }}
-      />
+                <Tooltip
+                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                  contentStyle={{
+                    background: "#020617",
+                    border: "1px solid #1e293b",
+                    borderRadius: "8px"
+                  }}
+                />
 
-      <Bar
-        dataKey="risk"
-        fill="url(#routeGradient)"
-        radius={[6,6,0,0]}
-        barSize={45}
-      />
+                <Bar
+                  dataKey="risk"
+                  fill="url(#routeGradient)"
+                  radius={[6,6,0,0]}
+                  barSize={45}
+                  animationDuration={1200}
+                />
 
-    </BarChart>
+              </BarChart>
 
-  </ResponsiveContainer>
+            </ResponsiveContainer>
 
-</div>
+          </div>
 
         </div>
 
       </div>
 
-      {/* ALERT FEED */}
+      {/* ALERTS */}
 
       <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
@@ -318,18 +366,12 @@ export default function Dashboard() {
           🚨 Active Risk Alerts
         </h2>
 
-        {alerts.length === 0 && (
-          <p className="text-gray-400 text-sm">
-            No high-risk anomalies detected recently
-          </p>
-        )}
-
         {alerts.map((a) => (
 
           <div
             key={a.id}
             onClick={() => navigate(`/transactions/${a.transaction_id}`)}
-            className="flex justify-between border-b border-gray-800 py-2 cursor-pointer hover:text-white"
+            className="flex justify-between border-b border-gray-800 py-2 cursor-pointer hover:text-white transition"
           >
 
             <span>
@@ -346,7 +388,7 @@ export default function Dashboard() {
 
       </div>
 
-      {/* TOP HIGH RISK */}
+      {/* TOP RISK */}
 
       <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
@@ -372,22 +414,23 @@ export default function Dashboard() {
             {topRisk.map((txn) => (
 
               <tr
-  key={txn.id}
-  onClick={() => navigate(`/transactions/${txn.transaction_id}`)}
-  className="border-t border-gray-800 hover:bg-gray-800 cursor-pointer"
->
+                key={txn.id}
+                onClick={() => navigate(`/transactions/${txn.transaction_id}`)}
+                className="border-t border-gray-800 hover:bg-gray-800 cursor-pointer"
+              >
 
-  <td className="p-3">{txn.transaction_id}</td>
+                <td className="p-3">{txn.transaction_id}</td>
 
-  <td className="text-red-400 font-semibold">
-    {txn.final_risk.toFixed(2)}
-  </td>
+                <td className="text-red-400 font-semibold">
+                  {txn.final_risk.toFixed(2)}
+                </td>
 
-  <td>{txn.ai_score.toFixed(2)}</td>
+                <td>{txn.ai_score.toFixed(2)}</td>
 
-  <td>{txn.context_adjustment.toFixed(2)}</td>
+                <td>{txn.context_adjustment.toFixed(2)}</td>
 
-</tr>
+              </tr>
+
             ))}
 
           </tbody>
@@ -401,13 +444,26 @@ export default function Dashboard() {
 }
 
 function KPI({ label, value, color, sub }) {
+
   return (
+
     <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
-      <p className="text-xs text-gray-400 uppercase">{label}</p>
+
+      <p className="text-xs text-gray-400 uppercase">
+        {label}
+      </p>
+
       <p className={`text-2xl font-bold mt-2 ${color || ""}`}>
         {value}
       </p>
-      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+
+      {sub && (
+        <p className="text-xs text-gray-500 mt-1">
+          {sub}
+        </p>
+      )}
+
     </div>
+
   );
 }
