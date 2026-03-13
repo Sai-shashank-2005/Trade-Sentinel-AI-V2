@@ -30,18 +30,18 @@ export default function TransactionDetail() {
     );
 
   const confidence = (
-    (Math.abs(txn.ai_score) + Math.abs(txn.rule_score)) / 2
+    (Math.abs(txn.ai_score ?? 0) + Math.abs(txn.rule_score ?? 0)) / 2
   ).toFixed(1);
 
   return (
     <div className="space-y-8 w-full">
 
-      {/* ================= HERO ================= */}
+      {/* HERO */}
 
-   <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl grid grid-cols-3 items-center">
+      <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl grid grid-cols-3 items-center">
 
-        {/* LEFT - Risk */}
         <div className="col-span-2">
+
           <p className="text-xs text-gray-400 uppercase tracking-wider">
             Final Risk Score
           </p>
@@ -55,7 +55,7 @@ export default function TransactionDetail() {
                 : "text-green-400"
             }`}
           >
-            {txn.final_risk.toFixed(2)}
+            {(txn.final_risk ?? 0).toFixed(2)}
           </p>
 
           <span
@@ -73,22 +73,32 @@ export default function TransactionDetail() {
           <div className="mt-4 text-xs text-gray-500 space-y-1">
             <p>Transaction ID: {txn.transaction_id}</p>
             <p>
-              Processed: {new Date(txn.created_at).toLocaleString()}
+              Processed:{" "}
+              {txn.created_at
+                ? new Date(txn.created_at).toLocaleString()
+                : "-"}
             </p>
           </div>
+
         </div>
 
-        {/* RIGHT - Metrics */}
         <div className="col-span-1 text-right space-y-6 border-l border-gray-800 pl-8">
-          <Metric label="AI Score" value={txn.ai_score.toFixed(2)} />
-          <Metric label="Rule Score" value={txn.rule_score.toFixed(2)} />
+
+          <Metric label="AI Score" value={(txn.ai_score ?? 0).toFixed(2)} />
+
+          <Metric label="Rule Score" value={(txn.rule_score ?? 0).toFixed(2)} />
+
           <Metric
             label="Context Adjustment"
-            value={txn.context_adjustment.toFixed(2)}
+            value={(txn.context_adjustment ?? 0).toFixed(2)}
           />
+
         </div>
+
       </div>
-      {/* ================= TRADE SNAPSHOT ================= */}
+
+
+      {/* TRADE SNAPSHOT */}
 
       <div className="bg-gray-900 p-6 rounded-2xl shadow-lg">
 
@@ -103,9 +113,9 @@ export default function TransactionDetail() {
           <Data label="Exporter" value={txn.exporter} />
           <Data label="HS Code" value={txn.hs_code} />
 
-          <Data label="Quantity" value={txn.quantity?.toFixed(2)} />
-          <Data label="Unit Price" value={txn.unit_price?.toFixed(2)} />
-          <Data label="Total Value" value={txn.total_value?.toFixed(2)} />
+          <Data label="Quantity" value={(txn.quantity ?? 0).toFixed(2)} />
+          <Data label="Unit Price" value={(txn.unit_price ?? 0).toFixed(2)} />
+          <Data label="Total Value" value={(txn.total_value ?? 0).toFixed(2)} />
 
           <Data label="Origin Country" value={txn.origin_country} />
           <Data label="Destination Country" value={txn.destination_country} />
@@ -116,23 +126,17 @@ export default function TransactionDetail() {
       </div>
 
 
-      {/* ================= ENGINE BREAKDOWN ================= */}
+      {/* ENGINE BREAKDOWN */}
 
       <div className="grid grid-cols-2 gap-6">
 
         <Card title="Model Contribution">
 
-          <Progress label="AI Influence" value={txn.ai_score} />
-
-          <Progress label="Rule Influence" value={txn.rule_score} />
-
-          <Progress
-            label="Context Impact"
-            value={Math.abs(txn.context_adjustment)}
-          />
+          <Progress label="AI Influence" value={txn.ai_score ?? 0} />
+          <Progress label="Rule Influence" value={txn.rule_score ?? 0} />
+          <Progress label="Context Impact" value={Math.abs(txn.context_adjustment ?? 0)} />
 
         </Card>
-
 
         <Card title="Rule Triggers">
 
@@ -146,58 +150,40 @@ export default function TransactionDetail() {
       </div>
 
 
-     {/* ================= SIGNALS + CONFIDENCE ================= */}
+      {/* SIGNALS + CONFIDENCE */}
 
-<div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-6">
 
-  {/* ---------- STATISTICAL SIGNALS ---------- */}
+        <Card title="Statistical Signals">
 
-  <Card title="Statistical Signals">
+          <Progress label="Price Z-Score" value={(txn.price_zscore ?? 0) * 10} />
+          <Progress label="Volume Z-Score" value={(txn.volume_zscore ?? 0) * 10} />
+          <Progress label="Route Frequency" value={(txn.route_frequency ?? 0) * 20} />
+          <Progress label="Counterparty Frequency" value={(txn.counterparty_frequency ?? 0) * 20} />
 
-    <Progress
-      label="Price Z-Score"
-      value={txn.price_zscore * 10}
-    />
+        </Card>
 
-    <Progress
-      label="Volume Z-Score"
-      value={txn.volume_zscore * 10}
-    />
+        <div className="bg-gray-900 p-6 rounded-2xl shadow-lg flex flex-col justify-center items-center">
 
-    <Progress
-      label="Route Frequency"
-      value={txn.route_frequency * 20}
-    />
+          <p className="text-xs text-gray-400 uppercase tracking-wide">
+            Model Confidence
+          </p>
 
-    <Progress
-      label="Counterparty Frequency"
-      value={txn.counterparty_frequency * 20}
-    />
+          <p className="text-5xl font-bold mt-3 text-blue-400">
+            {confidence}%
+          </p>
 
-  </Card>
+          <p className="text-xs text-gray-500 mt-3 text-center max-w-xs">
+            Confidence derived from combined AI anomaly detection
+            and rule-based intelligence signals.
+          </p>
+
+        </div>
+
+      </div>
 
 
-  {/* ---------- MODEL CONFIDENCE ---------- */}
-
-  <div className="bg-gray-900 p-6 rounded-2xl shadow-lg flex flex-col justify-center items-center">
-
-    <p className="text-xs text-gray-400 uppercase tracking-wide">
-      Model Confidence
-    </p>
-
-    <p className="text-5xl font-bold mt-3 text-blue-400">
-      {confidence}%
-    </p>
-
-    <p className="text-xs text-gray-500 mt-3 text-center max-w-xs">
-      Confidence derived from combined AI anomaly detection
-      and rule-based intelligence signals.
-    </p>
-
-  </div>
-
-</div>
-      {/* ================= EXPLAINABLE AI ================= */}
+      {/* EXPLAINABLE AI */}
 
       <div className="bg-blue-950/40 border border-blue-900 p-6 rounded-2xl shadow-lg">
 
@@ -210,7 +196,7 @@ export default function TransactionDetail() {
         </h2>
 
         <p className="text-gray-300 text-sm leading-relaxed">
-          {txn.explanation_text}
+          {txn.explanation_text || "No explanation available"}
         </p>
 
       </div>
@@ -220,7 +206,7 @@ export default function TransactionDetail() {
 }
 
 
-/* ================= COMPONENTS ================= */
+/* COMPONENTS */
 
 function Metric({ label, value }) {
   return (
