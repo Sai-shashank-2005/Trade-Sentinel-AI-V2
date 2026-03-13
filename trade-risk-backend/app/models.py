@@ -9,6 +9,24 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     transaction_id = Column(Integer)
 
+    # ================= RAW TRADE DATA =================
+    date = Column(String)
+    importer = Column(String)
+    exporter = Column(String)
+    hs_code = Column(String)
+
+    quantity = Column(Float)
+    unit_price = Column(Float)
+    total_value = Column(Float)
+
+    origin_country = Column(String)
+    destination_country = Column(String)
+    route = Column(String)
+
+    dataset_name = Column(String)
+    source = Column(String)
+
+    # ================= RISK SYSTEM =================
     raw_risk = Column(Float)
     final_risk = Column(Float)
     ai_score = Column(Float)

@@ -1,85 +1,109 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL;
 
 export default function Transactions() {
+
+  const navigate = useNavigate();
+
   const [transactions, setTransactions] = useState([]);
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("All");
   const [page, setPage] = useState(1);
 
-  const navigate = useNavigate();
   const limit = 50;
 
-  useEffect(() => {
-    fetchData();
-  }, [page, riskFilter]);
+  async function loadTransactions() {
 
-  async function fetchData() {
     try {
-      const params = {
-        limit,
-        offset: (page - 1) * limit,
-      };
 
-      if (riskFilter !== "All") {
-        params.risk_level = riskFilter;
-      }
+      const offset = (page - 1) * limit;
 
-      const res = await axios.get(`${API}/transactions`, { params });
-      setTransactions(res.data);
+      const res = await axios.get(`${API}/transactions`, {
+        params: {
+          search: search || undefined,
+          risk_level: riskFilter === "All" ? undefined : riskFilter,
+          limit,
+          offset
+        }
+      });
+
+      setTransactions(res.data || []);
+
     } catch (err) {
-      console.error("Failed to fetch transactions");
+
+      console.error("Transaction load failed", err);
+
     }
+
   }
 
-  const filtered = transactions.filter((t) =>
-    t.transaction_id.toString().includes(search)
-  );
+  useEffect(() => {
+    loadTransactions();
+  }, [page]);
 
-  const highCount = filtered.filter(t => t.risk_level === "High").length;
-  const mediumCount = filtered.filter(t => t.risk_level === "Medium").length;
-  const lowCount = filtered.filter(t => t.risk_level === "Low").length;
+  function runSearch() {
+    setPage(1);
+    loadTransactions();
+  }
+
+  function riskBadge(level) {
+
+    if (level === "High")
+      return "bg-red-500/20 text-red-400";
+
+    if (level === "Medium")
+      return "bg-yellow-500/20 text-yellow-400";
+
+    return "bg-green-500/20 text-green-400";
+
+  }
+
+  function contextColor(val) {
+
+    if (val < 0) return "text-green-400";   // context reduced risk
+    if (val > 0) return "text-red-400";     // context increased risk
+    return "text-gray-300";
+
+  }
 
   return (
-    <div className="space-y-10">
 
-      {/* ================= EXECUTIVE HEADER ================= */}
-       <div className="bg-linear-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl">
-        <h1 className="text-4xl font-bold tracking-wide">
-        Transaction Intelligence Console
+    <div className="space-y-8">
+
+      {/* HEADER */}
+
+      <div className="bg-gray-900 p-8 rounded-2xl shadow-xl">
+
+        <h1 className="text-4xl font-bold">
+          Transaction Intelligence Console
         </h1>
+
         <p className="text-gray-400 mt-2 text-sm">
-          Real-time hybrid anomaly detection & contextual risk evaluation
+          Investigate trades and analyze risk signals
         </p>
-      </div>
-
-      {/* ================= LIVE SNAPSHOT ================= */}
-      <div className="grid grid-cols-3 gap-6">
-
-        <Snapshot label="High Risk" value={highCount} color="red" />
-        <Snapshot label="Medium Risk" value={mediumCount} color="yellow" />
-        <Snapshot label="Low Risk" value={lowCount} color="green" />
 
       </div>
 
-      {/* ================= CONTROLS ================= */}
-      <div className="flex flex-wrap gap-4 items-center">
+
+      {/* SEARCH PANEL */}
+
+      <div className="bg-gray-900 p-6 rounded-2xl flex items-center gap-4 flex-wrap">
 
         <input
-          type="text"
-          placeholder="Search by Transaction ID..."
-          className="bg-gray-900 border border-gray-800 px-4 py-2 rounded-lg w-72 text-sm focus:outline-none focus:border-blue-500 transition"
+          placeholder="Search transaction ID"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && runSearch()}
+          className="bg-gray-800 px-4 py-2 rounded-lg border border-gray-700 w-80 focus:outline-none focus:border-blue-500"
         />
 
         <select
-          className="bg-gray-900 border border-gray-800 px-4 py-2 rounded-lg text-sm focus:outline-none focus:border-blue-500 transition"
           value={riskFilter}
           onChange={(e) => setRiskFilter(e.target.value)}
+          className="bg-gray-800 px-4 py-2 rounded-lg border border-gray-700"
         >
           <option>All</option>
           <option>High</option>
@@ -87,127 +111,130 @@ export default function Transactions() {
           <option>Low</option>
         </select>
 
-        <div className="text-xs text-gray-500">
-          Showing {filtered.length} records (Page {page})
+        <button
+          onClick={runSearch}
+          className="bg-blue-500 hover:bg-blue-600 transition px-4 py-2 rounded-lg"
+        >
+          Search
+        </button>
+
+
+        {/* PAGINATION */}
+
+        <div className="flex items-center gap-3 ml-4">
+
+          <button
+            onClick={() => setPage(Math.max(1, page - 1))}
+            className="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-lg"
+          >
+            ◀
+          </button>
+
+          <span className="text-gray-400 text-sm">
+            Page {page}
+          </span>
+
+          <button
+            onClick={() => setPage(page + 1)}
+            className="bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-lg"
+          >
+            ▶
+          </button>
+
         </div>
+
       </div>
 
-      {/* ================= TABLE ================= */}
-      <div className="bg-gray-900 rounded-2xl shadow-xl overflow-hidden">
 
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-800 text-gray-400 uppercase tracking-wider text-xs">
-            <tr>
-              <th className="p-4">Txn ID</th>
-              <th>Risk</th>
-              <th>Final Risk</th>
-              <th>AI Score</th>
-              <th>Context Δ</th>
-              <th></th>
-            </tr>
-          </thead>
+      {/* TABLE */}
 
-          <tbody>
-            {filtered.map((txn) => (
-              <tr
-                key={txn.transaction_id}
-                onClick={() =>
-                  navigate(`/transactions/${txn.transaction_id}`)
-                }
-                className="border-t border-gray-800 hover:bg-gray-800 cursor-pointer transition"
-              >
-                <td className="p-4 font-medium">
-                  {txn.transaction_id}
-                </td>
+      <div className="bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
 
-                <td>{riskBadge(txn.risk_level)}</td>
+        <div className="h-[calc(100vh-320px)] overflow-y-auto">
 
-                <td className="font-semibold">
-                  {txn.final_risk.toFixed(2)}
-                </td>
+          <table className="w-full">
 
-                <td>{txn.ai_score.toFixed(2)}</td>
+            <thead className="bg-gray-800 text-gray-400 text-sm sticky top-0">
 
-                <td
-                  className={
-                    txn.context_adjustment < 0
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }
-                >
-                  {txn.context_adjustment.toFixed(2)}
-                </td>
-
-                <td className="text-blue-400 text-xs">
-                  View →
-                </td>
+              <tr>
+                <th className="text-left px-6 py-3">Txn ID</th>
+                <th className="text-center px-6 py-3">Risk</th>
+                <th className="text-right px-6 py-3">Final Risk</th>
+                <th className="text-right px-6 py-3">AI Score</th>
+                <th className="text-right px-8 py-3 min-w-[120px]">Context Δ</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
 
-      {/* ================= PAGINATION ================= */}
-      <div className="flex justify-between items-center text-sm">
+            </thead>
 
-        <button
-          className="bg-gray-900 border border-gray-800 px-4 py-2 rounded-lg disabled:opacity-40 hover:border-blue-500 transition"
-          disabled={page === 1}
-          onClick={() => setPage(page - 1)}
-        >
-          ← Previous
-        </button>
+            <tbody>
 
-        <button
-          className="bg-gray-900 border border-gray-800 px-4 py-2 rounded-lg hover:border-blue-500 transition"
-          onClick={() => setPage(page + 1)}
-        >
-          Next →
-        </button>
+              {transactions.map((tx) => (
+
+                <tr
+                  key={tx.id}
+                  className="border-t border-gray-800 hover:bg-gray-800/60 transition cursor-pointer odd:bg-gray-900 even:bg-gray-900/60"
+                  onClick={() => navigate(`/transactions/${tx.transaction_id}`)}
+                >
+
+                  {/* TXN ID */}
+
+                  <td className="px-6 py-3 font-mono text-blue-400">
+                    {tx.transaction_id}
+                  </td>
+
+
+                  {/* RISK */}
+
+                  <td className="px-6 py-3 text-center">
+
+                    <span
+                      className={`px-2 py-1 rounded text-xs ${riskBadge(tx.risk_level)}`}
+                    >
+                      {tx.risk_level}
+                    </span>
+
+                  </td>
+
+
+                  {/* FINAL RISK */}
+
+                  <td className="px-6 py-3 text-right font-semibold tabular-nums">
+                    {tx.final_risk?.toFixed(2)}
+                  </td>
+
+
+                  {/* AI SCORE */}
+
+                  <td className="px-6 py-3 text-right tabular-nums">
+                    {tx.ai_score?.toFixed(2)}
+                  </td>
+
+
+                  {/* CONTEXT */}
+
+                  <td
+                    className={`px-8 py-3 text-right tabular-nums ${contextColor(
+                      tx.context_adjustment
+                    )}`}
+                  >
+                    {tx.context_adjustment > 0 ? "+" : ""}
+                    {tx.context_adjustment?.toFixed(2)}
+                  </td>
+
+                </tr>
+
+              ))}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
       </div>
 
     </div>
+
   );
-}
 
-/* ================= COMPONENTS ================= */
-
-function Snapshot({ label, value, color }) {
-  const textColor =
-    color === "red"
-      ? "text-red-400"
-      : color === "yellow"
-      ? "text-yellow-400"
-      : "text-green-400";
-
-  return (
-    <div className="bg-gray-900 p-6 rounded-2xl">
-      <p className="text-gray-400 text-sm">{label}</p>
-      <p className={`text-2xl font-bold mt-2 ${textColor}`}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function riskBadge(level) {
-  if (level === "High")
-    return (
-      <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-xs font-medium">
-        High
-      </span>
-    );
-
-  if (level === "Medium")
-    return (
-      <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-medium">
-        Medium
-      </span>
-    );
-
-  return (
-    <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-medium">
-      Low
-    </span>
-  );
 }

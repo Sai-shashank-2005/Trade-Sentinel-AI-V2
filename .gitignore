@@ -1,11 +1,26 @@
-# Backend
+# Python
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Frontend
+# Node
 node_modules/
 dist/
+build/
 
-# Env files
+# Environment
 .env
+.env.local
+
+# Database
+*.db
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

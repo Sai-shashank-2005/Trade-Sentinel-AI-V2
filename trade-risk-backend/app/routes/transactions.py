@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import cast, String
 
 from app.database import SessionLocal
 from app.models import Transaction
 
 router = APIRouter()
+
 
 def get_db():
     db = SessionLocal()
@@ -14,8 +16,13 @@ def get_db():
         db.close()
 
 
+# -------------------------------
+# GET ALL TRANSACTIONS
+# -------------------------------
+
 @router.get("/transactions")
 def get_transactions(
+    search: str = Query(None),
     risk_level: str = Query(None),
     limit: int = 50,
     offset: int = 0,
@@ -24,13 +31,27 @@ def get_transactions(
 
     query = db.query(Transaction)
 
-    if risk_level:
+    # Search by transaction ID
+    if search:
+        query = query.filter(
+            cast(Transaction.transaction_id, String).contains(search)
+        )
+
+    # Filter by risk level
+    if risk_level and risk_level != "All":
         query = query.filter(Transaction.risk_level == risk_level)
+
+    # Newest first
+    query = query.order_by(Transaction.id.desc())
 
     results = query.offset(offset).limit(limit).all()
 
     return results
 
+
+# -------------------------------
+# GET SINGLE TRANSACTION
+# -------------------------------
 
 @router.get("/transactions/{transaction_id}")
 def get_transaction_detail(
