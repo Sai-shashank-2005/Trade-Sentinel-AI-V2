@@ -1,16 +1,27 @@
 # Trade Sentinel AI v2.5
 
 ## Context-Aware Hybrid Trade Risk Intelligence Platform
+Trade Sentinel AI is a hybrid anomaly detection system designed to identify suspicious transaction behavior using techniques aligned with modern threat detection systems.
 
-Trade Sentinel AI is a full-stack anomaly detection platform designed to identify suspicious international trade transactions while reducing false positives through contextual behavioral calibration.
-
-The platform combines machine learning, statistical anomaly detection, rule-based intelligence, and context-aware calibration to generate explainable trade risk assessments suitable for real-world compliance systems.
+The platform applies principles used in cybersecurity detection engineering, including behavioral analysis, signal correlation, and risk scoring, to detect trade-based fraud scenarios.
 
 ## Overview
 
 Trade-based fraud such as over-invoicing, under-invoicing, abnormal routing, and suspicious counterparties is difficult to detect using traditional rule-based systems.
 
 Legacy systems typically suffer from high false positives, static detection logic, and limited explainability. This project introduces a hybrid intelligence architecture that improves detection accuracy while maintaining operational efficiency.
+
+## Cybersecurity Relevance
+
+This system applies core detection engineering principles used in SOC environments.
+
+- Behavioral anomaly detection comparable to UEBA systems  
+- Signal correlation (AI + rule engine) similar to SIEM detection pipelines  
+- Context-aware false positive reduction aligned with real SOC challenges  
+- Explainable risk scoring to support investigation workflows  
+
+The architecture mirrors how modern security platforms detect and prioritize suspicious activity, making it directly relevant to threat detection and incident analysis.
+
 
 ## Key Features (v2.5)
 
